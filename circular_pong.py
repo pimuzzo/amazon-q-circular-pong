@@ -9,9 +9,11 @@ import pygame
 import math
 import sys
 import random
+import numpy as np
 
 # Initialize Pygame
 pygame.init()
+pygame.mixer.init()  # Initialize sound mixer
 
 # Constants
 SCREEN_WIDTH = 800
@@ -35,16 +37,34 @@ BALL_SPEED = 5
 PADDLE_SPEED = 3
 
 
+def generate_beep_sound(frequency, duration, sample_rate=22050):
+    """Generate a simple beep sound"""
+    frames = int(duration * sample_rate)
+    arr = np.sin(2 * np.pi * frequency * np.linspace(0, duration, frames))
+    arr = (arr * 32767).astype(np.int16)
+    arr = np.repeat(arr.reshape(frames, 1), 2, axis=1)  # Make stereo
+    sound = pygame.sndarray.make_sound(arr)
+    return sound
+
+def generate_noise_sound(duration, sample_rate=22050):
+    """Generate a noise sound for game over"""
+    frames = int(duration * sample_rate)
+    arr = np.random.randint(-2000, 2000, (frames, 2), dtype=np.int16)
+    sound = pygame.sndarray.make_sound(arr)
+    return sound
+
+
 class Ball:
     """Ball class that handles ball physics and rendering"""
     
-    def __init__(self, x, y):
+    def __init__(self, x, y, game=None):
         self.x = x
         self.y = y
         # Random initial velocity in any direction
         self.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
         self.dy = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
         self.radius = BALL_RADIUS
+        self.game = game  # Reference to game for sound effects
         
     def update(self):
         """Update ball position and handle circular boundary collision"""
@@ -57,6 +77,10 @@ class Ball:
         distance_from_center = math.sqrt((self.x - center_x)**2 + (self.y - center_y)**2)
         
         if distance_from_center + self.radius >= CIRCLE_RADIUS:
+            # Play wall bounce sound
+            if self.game and self.game.sounds_enabled:
+                self.game.wall_sound.play()
+            
             # Calculate reflection off circular boundary
             # Vector from center to ball
             normal_x = (self.x - center_x) / distance_from_center
@@ -145,8 +169,26 @@ class Game:
         self.font = pygame.font.Font(None, 36)
         self.small_font = pygame.font.Font(None, 24)
         
+        # Initialize sounds
+        try:
+            # Check if pygame mixer is properly initialized
+            if not pygame.mixer.get_init():
+                pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
+            
+            print("Generating sounds...")
+            self.paddle_sound = generate_beep_sound(800, 0.1)  # High pitch beep for paddle
+            self.wall_sound = generate_beep_sound(400, 0.15)   # Lower pitch for wall bounce
+            self.life_lost_sound = generate_beep_sound(200, 0.3)  # Low pitch for life loss
+            self.game_over_sound = generate_noise_sound(0.5)   # Noise for game over
+            self.sounds_enabled = True
+            print("Sound initialization successful!")
+        except Exception as e:
+            print(f"Sound initialization failed: {e}")
+            print("Continuing without sound...")
+            self.sounds_enabled = False
+        
         # Game objects
-        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50)
+        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50, self)
         self.paddle = Paddle()
         
         # Game state
@@ -167,6 +209,10 @@ class Game:
         distance = self.point_to_line_distance(ball_pos, start_pos, end_pos)
         
         if distance <= self.ball.radius + self.paddle.thickness // 2:
+            # Play paddle hit sound
+            if self.sounds_enabled:
+                self.paddle_sound.play()
+            
             # Collision detected - reflect ball
             # Calculate normal vector of paddle
             paddle_dx = end_pos[0] - start_pos[0]
@@ -237,6 +283,14 @@ class Game:
                 # Player missed the ball - lose a life
                 self.lives -= 1
                 self.life_lost = True  # Prevent multiple life losses
+                
+                # Play appropriate sound
+                if self.sounds_enabled:
+                    if self.lives <= 0:
+                        self.game_over_sound.play()
+                    else:
+                        self.life_lost_sound.play()
+                
                 if self.lives <= 0:
                     self.game_over = True
                 else:
@@ -247,7 +301,7 @@ class Game:
     
     def reset_ball(self):
         """Reset ball to center position with velocity directed towards top semicircle (paddle area)"""
-        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50)
+        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50, self)
         # Direct ball towards top semicircle (0° to 180°) where the paddle is
         # Set velocity to go upward and slightly to one side
         self.ball.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.5, 0.8)
@@ -345,7 +399,7 @@ class Game:
     
     def restart(self):
         """Restart the game"""
-        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50)  # Start near center
+        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50, self)  # Pass game reference
         self.paddle = Paddle()
         self.score = 0
         self.bounces = 0
