@@ -196,11 +196,17 @@ class Game:
         self.bounces = 0
         self.lives = 3
         self.life_lost = False  # Flag to prevent multiple life losses
+        self.paddle_collision_cooldown = 0  # Prevent multiple paddle hits
         self.game_over = False
         self.start_time = pygame.time.get_ticks()
         
     def check_paddle_collision(self):
         """Check if ball collides with paddle - returns True if collision occurred"""
+        # Decrease cooldown timer
+        if self.paddle_collision_cooldown > 0:
+            self.paddle_collision_cooldown -= 1
+            return False  # Skip collision check during cooldown
+        
         # Get paddle endpoints
         start_pos, end_pos = self.paddle.get_endpoints()
         
@@ -238,6 +244,7 @@ class Game:
             self.ball.dy = (self.ball.dy / speed) * BALL_SPEED
             
             self.bounces += 1
+            self.paddle_collision_cooldown = 10  # Set cooldown (10 frames)
             return True  # Collision occurred
         return False  # No collision
     
@@ -405,6 +412,7 @@ class Game:
         self.bounces = 0
         self.lives = 3
         self.life_lost = False
+        self.paddle_collision_cooldown = 0
         self.game_over = False
         self.start_time = pygame.time.get_ticks()
     
