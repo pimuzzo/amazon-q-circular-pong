@@ -60,9 +60,9 @@ class Ball:
     def __init__(self, x, y, game=None):
         self.x = x
         self.y = y
-        # Random initial velocity in any direction
+        # Always start moving towards top semicircle (0°-180°) where paddle is
         self.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
-        self.dy = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
+        self.dy = -abs(random.uniform(0.7, 1.0)) * BALL_SPEED  # Always negative (upward)
         self.radius = BALL_RADIUS
         self.game = game  # Reference to game for sound effects
         
