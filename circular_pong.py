@@ -26,6 +26,10 @@ WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BRIGHT_GREEN = (50, 255, 50)
 DARK_GREEN = (0, 150, 0)
+RED = (255, 0, 0)
+DARK_RED = (150, 0, 0)
+BLUE = (0, 0, 255)
+BRIGHT_BLUE = (50, 50, 255)
 
 # Game settings
 CIRCLE_RADIUS = 250
@@ -346,11 +350,17 @@ class Game:
                         (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1]),
                         (CIRCLE_CENTER[0] + CIRCLE_RADIUS, CIRCLE_CENTER[1]), 2)
         
-        # Highlight the paddle movement area (top semicircle from 0° to 180°)
+        # Draw red top semicircle (0° to 180°) where paddle moves
+        pygame.draw.arc(self.screen, RED, 
+                       (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1] - CIRCLE_RADIUS,
+                        CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2),
+                       0, math.pi, 4)
+        
+        # Highlight the bottom semicircle in green (180° to 360°)
         pygame.draw.arc(self.screen, BRIGHT_GREEN, 
                        (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1] - CIRCLE_RADIUS,
                         CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2),
-                       0, math.pi, 3)
+                       math.pi, 2 * math.pi, 1)
         
         # Draw game objects
         self.paddle.draw(self.screen)
