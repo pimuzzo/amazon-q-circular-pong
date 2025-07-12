@@ -106,7 +106,7 @@ class Paddle:
     """Paddle class that moves along the semicircle"""
     
     def __init__(self):
-        self.angle = math.pi  # Start at 180 degrees (bottom of circle)
+        self.angle = math.pi / 2  # Always start at 90 degrees (top of circle)
         self.length = PADDLE_LENGTH
         self.thickness = PADDLE_THICKNESS
         
