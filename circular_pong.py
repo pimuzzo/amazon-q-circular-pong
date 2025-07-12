@@ -158,7 +158,7 @@ class Game:
         self.start_time = pygame.time.get_ticks()
         
     def check_paddle_collision(self):
-        """Check if ball collides with paddle"""
+        """Check if ball collides with paddle - returns True if collision occurred"""
         # Get paddle endpoints
         start_pos, end_pos = self.paddle.get_endpoints()
         
@@ -192,8 +192,8 @@ class Game:
             self.ball.dy = (self.ball.dy / speed) * BALL_SPEED
             
             self.bounces += 1
-            return True
-        return False
+            return True  # Collision occurred
+        return False  # No collision
     
     def point_to_line_distance(self, point, line_start, line_end):
         """Calculate distance from point to line segment"""
@@ -262,9 +262,12 @@ class Game:
             self.paddle.update(keys)
             self.ball.update()
             
-            # Check collisions
-            self.check_paddle_collision()
-            self.check_game_over()
+            # Check paddle collision first - if ball hits paddle, don't lose life
+            paddle_hit = self.check_paddle_collision()
+            
+            # Only check for life loss if paddle was NOT hit
+            if not paddle_hit:
+                self.check_game_over()
             
             # Update score (time survived)
             current_time = pygame.time.get_ticks()
