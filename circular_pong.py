@@ -64,7 +64,7 @@ class Ball:
     def __init__(self, x, y, game=None):
         self.x = x
         self.y = y
-        # Always start moving towards top semicircle (0°-180°) where paddle is
+        # Always start moving towards red semicircle (180°-360°)
         self.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
         self.dy = -abs(random.uniform(0.7, 1.0)) * BALL_SPEED  # Always negative (upward)
         self.radius = BALL_RADIUS
@@ -110,7 +110,7 @@ class Paddle:
     """Paddle class that moves along the semicircle"""
     
     def __init__(self):
-        self.angle = math.pi / 2  # Always start at 90 degrees (top of circle)
+        self.angle = math.pi / 2  # Always start at 90 degrees (green)
         self.length = PADDLE_LENGTH
         self.thickness = PADDLE_THICKNESS
         
@@ -121,7 +121,7 @@ class Paddle:
         if keys[pygame.K_RIGHT]:
             self.angle -= PADDLE_SPEED * 0.02
             
-        # Constrain paddle to upper semicircle (0° to 180°)
+        # Constrain paddle to green semicircle (0° to 180°) that it protects
         if self.angle > math.pi:
             self.angle = math.pi
         elif self.angle < 0:
@@ -277,7 +277,7 @@ class Game:
         return math.sqrt((px - closest_x)**2 + (py - closest_y)**2)
     
     def check_game_over(self):
-        """Check if ball crossed the top area without hitting paddle"""
+        """Check if ball crossed the green area without hitting paddle"""
         center_x, center_y = CIRCLE_CENTER
         
         # Calculate distance from center and angle
@@ -286,11 +286,11 @@ class Game:
         if ball_angle < 0:
             ball_angle += 2 * math.pi
         
-        # Check if ball is very close to the circular boundary in the top semicircle
+        # Check if ball is very close to the circular boundary in the green semicircle
         if distance_from_center >= CIRCLE_RADIUS - self.ball.radius - 5:  # Close to boundary
-            # Check if ball is in the top semicircle (0° to 180°) where paddle should defend
+            # Check if ball is trying to enter the green semicircle (0° to 180°) that paddle protects
             if 0 <= ball_angle <= math.pi and not self.life_lost:
-                print(f"Ball hit top boundary at {math.degrees(ball_angle):.1f}° - losing life!")
+                print(f"Ball hit green boundary at {math.degrees(ball_angle):.1f}° - losing life!")
                 # Player missed the ball - lose a life
                 self.lives -= 1
                 self.life_lost = True  # Prevent multiple life losses
@@ -311,9 +311,9 @@ class Game:
                     self.life_lost = False  # Reset flag for next round
     
     def reset_ball(self):
-        """Reset ball to center position with velocity directed towards top semicircle (paddle area)"""
+        """Reset ball to center position with velocity directed towards red semicircle"""
         self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50, self)
-        # Direct ball towards top semicircle (0° to 180°) where the paddle is
+        # Direct ball towards red semicircle (180° to 360°)
         # Set velocity to go upward and slightly to one side
         self.ball.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.5, 0.8)
         self.ball.dy = -abs(random.uniform(0.6, 1.0)) * BALL_SPEED  # Always negative (upward)
@@ -350,13 +350,13 @@ class Game:
                         (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1]),
                         (CIRCLE_CENTER[0] + CIRCLE_RADIUS, CIRCLE_CENTER[1]), 2)
         
-        # Draw red top semicircle (0° to 180°) where paddle moves
+        # Draw red upper semicircle (180° to 360°) - safe zone for ball
         pygame.draw.arc(self.screen, RED, 
                        (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1] - CIRCLE_RADIUS,
                         CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2),
                        0, math.pi, 4)
         
-        # Highlight the bottom semicircle in green (180° to 360°)
+        # Highlight the bottom semicircle in green (0° to 180°) where paddle moves and protects
         pygame.draw.arc(self.screen, BRIGHT_GREEN, 
                        (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1] - CIRCLE_RADIUS,
                         CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2),
@@ -379,7 +379,7 @@ class Game:
         if self.score < 3:  # Show instructions for first 3 seconds
             instructions = [
                 "Use LEFT/RIGHT arrows to move paddle",
-                "Keep the ball from crossing the red semicircle!",
+                "Keep the ball from entering the green semicircle!",
                 "Survive as long as possible!"
             ]
             for i, instruction in enumerate(instructions):
