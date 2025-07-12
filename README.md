@@ -47,6 +47,8 @@ python circular_pong.py
 - You have 3 lives total - the game ends when all lives are lost
 - Try to survive as long as possible and rack up paddle bounces!
 
+![Circular Pong Gameplay](images/circular_pong_demo.gif)
+
 ## Visual Zones
 
 - **Green Semicircle (0° to 180°)**: Protected zone where the paddle moves and defends
@@ -79,3 +81,8 @@ The code includes comprehensive comments explaining the physics calculations, ga
 - **Game Over**: Noise sound when all lives are lost
 
 Enjoy the game!
+
+## About This Project
+
+This game was developed as part of the **Amazon Q Build Games Challenge (June–July 2025)** using Amazon Q Developer CLI.  
+Learn more about the challenge: #BuildGamesChallenge #AmazonQDevCLI
