@@ -41,6 +41,7 @@ class Ball:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        # Random initial velocity in any direction
         self.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
         self.dy = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.7, 1.0)
         self.radius = BALL_RADIUS
@@ -92,11 +93,11 @@ class Paddle:
         if keys[pygame.K_RIGHT]:
             self.angle -= PADDLE_SPEED * 0.02
             
-        # Constrain paddle to lower semicircle (180° to 360°)
-        if self.angle > 2 * math.pi:
-            self.angle = 2 * math.pi
-        elif self.angle < math.pi:
+        # Constrain paddle to upper semicircle (0° to 180°)
+        if self.angle > math.pi:
             self.angle = math.pi
+        elif self.angle < 0:
+            self.angle = 0
     
     def get_position(self):
         """Get paddle center position"""
@@ -151,6 +152,8 @@ class Game:
         # Game state
         self.score = 0
         self.bounces = 0
+        self.lives = 3
+        self.life_lost = False  # Flag to prevent multiple life losses
         self.game_over = False
         self.start_time = pygame.time.get_ticks()
         
@@ -217,22 +220,38 @@ class Game:
         return math.sqrt((px - closest_x)**2 + (py - closest_y)**2)
     
     def check_game_over(self):
-        """Check if ball crossed the semicircle without hitting paddle"""
+        """Check if ball crossed the top area without hitting paddle"""
         center_x, center_y = CIRCLE_CENTER
         
-        # Check if ball is in lower semicircle and moving away from center
-        if self.ball.y > center_y:
-            # Calculate angle of ball from center
-            ball_angle = math.atan2(self.ball.y - center_y, self.ball.x - center_x)
-            if ball_angle < 0:
-                ball_angle += 2 * math.pi
-                
-            # Check if ball is in the danger zone (lower semicircle)
-            if math.pi <= ball_angle <= 2 * math.pi:
-                # Check if ball is moving towards the edge
-                distance_from_center = math.sqrt((self.ball.x - center_x)**2 + (self.ball.y - center_y)**2)
-                if distance_from_center > CIRCLE_RADIUS * 0.8:
+        # Calculate distance from center and angle
+        distance_from_center = math.sqrt((self.ball.x - center_x)**2 + (self.ball.y - center_y)**2)
+        ball_angle = math.atan2(self.ball.y - center_y, self.ball.x - center_x)
+        if ball_angle < 0:
+            ball_angle += 2 * math.pi
+        
+        # Check if ball is very close to the circular boundary in the top semicircle
+        if distance_from_center >= CIRCLE_RADIUS - self.ball.radius - 5:  # Close to boundary
+            # Check if ball is in the top semicircle (0° to 180°) where paddle should defend
+            if 0 <= ball_angle <= math.pi and not self.life_lost:
+                print(f"Ball hit top boundary at {math.degrees(ball_angle):.1f}° - losing life!")
+                # Player missed the ball - lose a life
+                self.lives -= 1
+                self.life_lost = True  # Prevent multiple life losses
+                if self.lives <= 0:
                     self.game_over = True
+                else:
+                    # Reset ball position for next life after a short delay
+                    pygame.time.wait(500)  # Brief pause
+                    self.reset_ball()
+                    self.life_lost = False  # Reset flag for next round
+    
+    def reset_ball(self):
+        """Reset ball to center position with velocity directed towards top semicircle (paddle area)"""
+        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50)
+        # Direct ball towards top semicircle (0° to 180°) where the paddle is
+        # Set velocity to go upward and slightly to one side
+        self.ball.dx = random.choice([-1, 1]) * BALL_SPEED * random.uniform(0.5, 0.8)
+        self.ball.dy = -abs(random.uniform(0.6, 1.0)) * BALL_SPEED  # Always negative (upward)
     
     def update(self):
         """Update game state"""
@@ -258,11 +277,16 @@ class Game:
         # Draw circular boundary
         pygame.draw.circle(self.screen, DARK_GREEN, CIRCLE_CENTER, CIRCLE_RADIUS, 3)
         
-        # Draw semicircle danger zone indicator
-        pygame.draw.arc(self.screen, (100, 0, 0), 
+        # Draw center line to show the boundary
+        pygame.draw.line(self.screen, (100, 100, 0), 
+                        (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1]),
+                        (CIRCLE_CENTER[0] + CIRCLE_RADIUS, CIRCLE_CENTER[1]), 2)
+        
+        # Highlight the paddle movement area (top semicircle from 0° to 180°)
+        pygame.draw.arc(self.screen, BRIGHT_GREEN, 
                        (CIRCLE_CENTER[0] - CIRCLE_RADIUS, CIRCLE_CENTER[1] - CIRCLE_RADIUS,
                         CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2),
-                       math.pi, 2 * math.pi, 2)
+                       0, math.pi, 3)
         
         # Draw game objects
         self.paddle.draw(self.screen)
@@ -271,9 +295,11 @@ class Game:
         # Draw UI
         score_text = self.font.render(f"Time: {self.score}s", True, GREEN)
         bounces_text = self.font.render(f"Bounces: {self.bounces}", True, GREEN)
+        lives_text = self.font.render(f"Lives: {self.lives}", True, GREEN)
         
         self.screen.blit(score_text, (10, 10))
         self.screen.blit(bounces_text, (10, 50))
+        self.screen.blit(lives_text, (10, 90))
         
         # Draw instructions
         if self.score < 3:  # Show instructions for first 3 seconds
@@ -296,27 +322,32 @@ class Game:
             game_over_text = self.font.render("GAME OVER", True, WHITE)
             final_score_text = self.font.render(f"Final Time: {self.score}s", True, GREEN)
             final_bounces_text = self.font.render(f"Total Bounces: {self.bounces}", True, GREEN)
+            final_lives_text = self.font.render(f"Lives Used: {3 - self.lives}/3", True, GREEN)
             restart_text = self.small_font.render("Press R to restart or ESC to quit", True, WHITE)
             
             # Center the text
-            game_over_rect = game_over_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 60))
-            score_rect = final_score_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 20))
-            bounces_rect = final_bounces_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 20))
-            restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 60))
+            game_over_rect = game_over_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 80))
+            score_rect = final_score_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 40))
+            bounces_rect = final_bounces_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+            lives_rect = final_lives_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 40))
+            restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 + 80))
             
             self.screen.blit(game_over_text, game_over_rect)
             self.screen.blit(final_score_text, score_rect)
             self.screen.blit(final_bounces_text, bounces_rect)
+            self.screen.blit(final_lives_text, lives_rect)
             self.screen.blit(restart_text, restart_rect)
         
         pygame.display.flip()
     
     def restart(self):
         """Restart the game"""
-        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50)
+        self.ball = Ball(CIRCLE_CENTER[0], CIRCLE_CENTER[1] - 50)  # Start near center
         self.paddle = Paddle()
         self.score = 0
         self.bounces = 0
+        self.lives = 3
+        self.life_lost = False
         self.game_over = False
         self.start_time = pygame.time.get_ticks()
     
